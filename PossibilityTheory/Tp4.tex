@@ -1,0 +1,74 @@
+
+\chapter{Logique Possibiliste et Inférence SAT}
+
+\section{Fondements Théoriques Détaillés}
+La logique possibiliste est une extension de la logique classique permettant de gérer des connaissances incertaines ou prioritaires. Contrairement aux approches probabilistes, elle est purement ordinale dans sa version qualitative.
+
+\subsection{Mesures de Possibilité et de Nécessité}
+Elle repose sur deux mesures duales définies sur une échelle de priorité (généralement $[0, 1]$ ou un ensemble fini de labels) :
+\begin{itemize}
+    \item \textbf{Possibilité ($\Pi$)} : Représente le degré de compatibilité d'une information avec les connaissances. $\Pi(\varphi) = 1$ signifie que $\varphi$ est totalement possible.
+    \item \textbf{Nécessité ($N$)} : Représente le degré de certitude ou de priorité. Elle est définie par la dualité \cite{cite: 5} : $N(\varphi) = 1 - \Pi(\neg \varphi)$.
+\end{itemize}
+
+\subsection{Base de Connaissances Stratifiée}
+Une base de connaissances possibiliste $\Sigma$ est un ensemble de formules pondérées $(\varphi_i, \alpha_i)$, où $\alpha_i$ exprime le niveau de nécessité (priorité) de $\varphi_i$. La base est vue comme une pile de strates :
+\[ \Sigma = \{ (\phi_1, \alpha_1), (\phi_2, \alpha_2), \dots, (\phi_n, \alpha_n) \} \]
+avec $1 = \alpha_1 > \alpha_2 > \dots > \alpha_n > 0$. Chaque strate $\Sigma_{\alpha_i}$ contient les formules ayant une priorité supérieure ou égale à $\alpha_i$ \cite{cite: 17, 18}.
+
+\section{Le Solveur SAT : Définition et Rôle}
+Un solveur SAT est un outil algorithmique conçu pour résoudre le \textbf{Problème de Satisfaisabilité Booléenne}. 
+
+\subsection{Fonctionnement}
+Étant donnée une formule logique en Forme Normale Conjonctive (CNF), le solveur doit déterminer s'il existe une affectation de valeurs de vérité (Vrai/Faux) aux variables qui rend la formule globale vraie.
+\begin{itemize}
+    \item \textbf{SAT (Satisfiable)} : Il existe au moins une interprétation qui satisfait toutes les clauses.
+    \item \textbf{UNSAT (Insatisfiable)} : Aucune affectation ne peut satisfaire la formule. Il existe une contradiction logique.
+\end{itemize}
+Dans ce TP, nous utilisons le solveur \texttt{Glucose 4}, basé sur l'algorithme CDCL (Conflict-Driven Clause Learning), extrêmement efficace pour traiter des milliers de clauses en un temps réduit \cite{cite: 5}.
+
+\section{Fusion : Théorie des Possibilités et SAT}
+La fusion de ces deux domaines repose sur le \textbf{principe de réfutation} appliqué aux strates de la base.
+
+\subsection{Le Mécanisme de Projection}
+Pour vérifier si une variable $I$ est déduite avec une certitude $\alpha$, on ne considère pas toute la base, mais sa \textbf{coupe de niveau $\alpha$} (notée $\Sigma^*_\alpha$). Cette coupe est la projection de la base ne contenant que les formules dont le poids est $\geq \alpha$ \cite{cite: 11, 19}.
+
+\subsection{L'Inconsistance comme Preuve}
+La fusion s'opère par l'équivalence suivante :
+\[ \Sigma \vdash (\varphi, \alpha) \iff \Sigma^*_\alpha \cup \{ \neg \varphi \} \text{ est INCONSISTANT (UNSAT)} \]
+Le solveur SAT agit comme un "moteur de preuve" :
+\begin{enumerate}
+    \item On "ignore" temporairement les poids et on ne donne au solveur SAT que les clauses logiques des strates supérieures.
+    \item On ajoute la négation de notre objectif ($\neg \varphi$) avec une priorité maximale ($1$).
+    \item Si le solveur répond \textbf{UNSAT}, cela signifie que même au niveau de priorité $\alpha$, $\varphi$ est inévitable (sa négation crée une contradiction) \cite{cite: 13, 15}.
+\end{enumerate}
+
+\section{Méthode de Dichotomie}
+Plutôt que de tester chaque strate séquentiellement (ce qui serait $O(n)$), nous utilisons la recherche binaire (dichotomie) pour trouver le niveau de coupure critique \cite{cite: 5, 20}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{votre_image.png} 
+    \caption{Représentation de la base de connaissances stratifiée (Source : Sujet de TP)}
+\end{figure}
+
+\section{Résultats Expérimentaux}
+L'application de cette fusion sur la base fournie \cite{cite: 26-45} a permis d'identifier les niveaux de nécessité exacts pour chaque variable.
+
+\begin{center}
+\begin{tabular}{|c|c|l|}
+\hline
+Variable & $Val(\varphi, \Sigma)$ & Observation SAT \\
+\hline
+$b$ (2) & 0.6 & Inconsistant à partir de $r=4$. \\
+$c$ (3) & 0.6 & Inconsistant à partir de $r=4$. \\
+$d$ (4) & 0.14 & Consistant jusqu'à l'ajout de la dernière strate \cite{cite: 45}. \\
+$a, e, f$ & 0 & Toujours Consistant (Satisfiable). \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Conclusion}
+La force de cette approche réside dans la capacité du solveur SAT à gérer la complexité combinatoire du raisonnement logique, tandis que la théorie des possibilités fournit la structure hiérarchique nécessaire pour traiter l'incertitude qualitative. La méthode de dichotomie rend ce processus extrêmement performant, même pour des bases de connaissances volumineuses.
+
+\end{document}

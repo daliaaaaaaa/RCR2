@@ -1,0 +1,172 @@
+\section{Introduction}
+
+Dans un système d’exploitation multitâche, plusieurs processus s’exécutent simultanément et se partagent les ressources matérielles, notamment le processeur (CPU).  
+La gestion efficace du temps processeur est un problème fondamental des systèmes d’exploitation, généralement traité par des algorithmes d’ordonnancement classiques tels que Round-Robin ou la priorité fixe.
+
+Cependant, ces méthodes reposent souvent sur des seuils stricts et des décisions binaires. Or, dans un environnement réel, la charge du système et l’importance des processus sont des notions imprécises et évolutives.  
+La logique floue permet d’introduire une prise de décision progressive et plus proche du raisonnement humain.
+
+Dans ce travail, nous proposons un \textbf{contrôleur flou} chargé de déterminer la \textbf{part de CPU à allouer à un processus} en fonction :
+\begin{itemize}
+    \item de la charge globale du processeur,
+    \item de l’importance du processus.
+\end{itemize}
+
+\section{Présentation du contrôleur flou}
+
+Le contrôleur flou est de type \textbf{Mamdani}.  
+Il repose sur trois variables linguistiques :
+\begin{itemize}
+    \item deux variables d’entrée,
+    \item une variable de sortie.
+\end{itemize}
+
+\subsection{Entrée 1 : Charge CPU (CPULoad)}
+
+La variable \textit{CPULoad} représente le taux d’occupation global du processeur.
+
+\begin{itemize}
+    \item Univers de discours : $[0,100]~\%$
+    \item Sous-ensembles flous :
+    \begin{itemize}
+        \item \textbf{Low} (faible),
+        \item \textbf{Medium} (moyenne),
+        \item \textbf{High} (élevée).
+    \end{itemize}
+\end{itemize}
+
+Les fonctions d’appartenance utilisées sont de type trapézoïdal et triangulaire.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/cpuload_mf.png}
+\caption{Fonctions d’appartenance de la variable CPULoad}
+\end{figure}
+
+\subsection{Entrée 2 : Importance du processus (ProcessImportance)}
+
+Cette variable modélise l’importance relative d’un processus du point de vue du système d’exploitation.
+
+\begin{itemize}
+    \item Univers de discours : $[0,10]$
+    \item Sous-ensembles flous :
+    \begin{itemize}
+        \item \textbf{Low} (peu important),
+        \item \textbf{Medium} (importance moyenne),
+        \item \textbf{High} (processus critique).
+    \end{itemize}
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/importance_mf.png}
+\caption{Fonctions d’appartenance de la variable ProcessImportance}
+\end{figure}
+
+\subsection{Sortie : Part de CPU allouée (CPUShare)}
+
+La variable de sortie \textit{CPUShare} représente le pourcentage de CPU attribué au processus.
+
+\begin{itemize}
+    \item Univers de discours : $[0,100]~\%$
+    \item Sous-ensembles flous :
+    \begin{itemize}
+        \item \textbf{VeryLow},
+        \item \textbf{Low},
+        \item \textbf{Medium},
+        \item \textbf{High},
+        \item \textbf{VeryHigh}.
+    \end{itemize}
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/cpushare_mf.png}
+\caption{Fonctions d’appartenance de la variable CPUShare}
+\end{figure}
+
+\section{Base de règles floues}
+
+La base de connaissances est constituée de règles de la forme :
+
+\begin{center}
+\textit{Si CPULoad est X et ProcessImportance est Y alors CPUShare est Z}
+\end{center}
+
+Les règles principales sont :
+\begin{itemize}
+    \item Si la charge CPU est faible et le processus peu important, alors l’allocation est moyenne.
+    \item Si la charge CPU est faible et le processus critique, alors l’allocation est très élevée.
+    \item Si la charge CPU est moyenne, l’allocation dépend directement de l’importance du processus.
+    \item Si la charge CPU est élevée, l’allocation est réduite, sauf pour les processus critiques.
+\end{itemize}
+
+Ces règles traduisent une politique réaliste de gestion du CPU visant à préserver les performances globales du système tout en favorisant les processus importants.
+
+\section{Exemple de fonctionnement du contrôleur}
+
+On considère les valeurs suivantes :
+\begin{itemize}
+    \item Charge CPU : $CPULoad = 40~\%$
+    \item Importance du processus : $ProcessImportance = 7$
+\end{itemize}
+
+\subsection{Étape 1 : Fuzzification}
+
+Après évaluation des fonctions d’appartenance :
+\begin{itemize}
+    \item CPULoad est \textbf{Low} à 50\% et \textbf{Medium} à 50\%.
+    \item ProcessImportance est \textbf{Medium} à environ 33\% et \textbf{High} à 50\%.
+\end{itemize}
+
+\subsection{Étape 2 : Inférence floue}
+
+Quatre règles sont activées.  
+L’opérateur logique utilisé est :
+\begin{itemize}
+    \item ET : minimum,
+    \item implication floue : minimum,
+    \item agrégation des règles : maximum.
+\end{itemize}
+
+Après agrégation :
+\begin{itemize}
+    \item CPUShare est \textbf{Medium} à 33\%,
+    \item CPUShare est \textbf{High} à 50\%.
+\end{itemize}
+
+\subsection{Étape 3 : Défuzzification}
+
+La méthode du \textbf{centre de gravité (COG)} est utilisée pour obtenir une sortie nette.
+
+\section{Résultat et analyse}
+
+Le contrôleur flou fournit la valeur suivante :
+
+\begin{center}
+\textbf{CPUShare allouée = 74,37 \%}
+\end{center}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.65\textwidth]{figures/result_console.png}
+\caption{Résultat de la simulation du contrôleur flou}
+\end{figure}
+
+Cette valeur relativement élevée s’explique par :
+\begin{itemize}
+    \item une charge CPU modérée (40\%), laissant une marge d’allocation,
+    \item une importance élevée du processus (7/10),
+    \item l’activation dominante des règles associées aux ensembles \textit{High}.
+\end{itemize}
+
+Le contrôleur flou adopte donc un comportement cohérent : malgré une charge non négligeable, il privilégie un processus important afin de garantir sa bonne exécution.
+
+\section{Conclusion}
+
+Ce travail a montré l’intérêt de la logique floue pour la gestion des ressources dans les systèmes d’exploitation.  
+Contrairement aux méthodes classiques à seuils fixes, le contrôleur flou permet une prise de décision progressive, robuste et plus réaliste.
+
+L’approche proposée peut être étendue à d’autres problématiques telles que l’ordonnancement dynamique, la gestion de la mémoire ou la qualité de service réseau.
+
+\end{document}
