@@ -1,5 +1,4 @@
-
-\chapter{Logique Possibiliste et Inférence SAT}
+Ce chapitre présente l'application de la logique possibiliste combinée aux solveurs SAT pour le raisonnement sous incertitude. Nous détaillons les fondements théoriques, le mécanisme de fusion entre ces deux approches, et présentons les résultats expérimentaux obtenus.
 
 \section{Fondements Théoriques Détaillés}
 La logique possibiliste est une extension de la logique classique permettant de gérer des connaissances incertaines ou prioritaires. Contrairement aux approches probabilistes, elle est purement ordinale dans sa version qualitative.
@@ -45,10 +44,17 @@ Le solveur SAT agit comme un "moteur de preuve" :
 
 \section{Méthode de Dichotomie}
 Plutôt que de tester chaque strate séquentiellement (ce qui serait $O(n)$), nous utilisons la recherche binaire (dichotomie) pour trouver le niveau de coupure critique \cite{cite: 5, 20}.
-
+\begin{itemize}
+    \item On initialise deux indices : $low = 1$ (la plus haute priorité) et $high = n$ (la plus basse).
+    \item On calcule le milieu $mid = \lfloor (low + high) / 2 \rfloor$.
+    \item On teste la consistance de $\Sigma^*_{\alpha_{mid}} \cup \{ \neg \varphi \}$ avec le solveur SAT.
+    \item Si le résultat est \textbf{UNSAT}, on sait que $\varphi$ est déductible à ce niveau ou supérieur, donc on ajuste $low = mid + 1$.
+    \item Si le résultat est \textbf{SAT}, on ajuste $high = mid - 1$.
+    \item On répète jusqu'à ce que $low > high$. Le niveau critique est alors $\alpha_{high}$.
+\end{itemize}
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.7\textwidth]{votre_image.png} 
+    \includegraphics[width=0.7\textwidth]{images/OrganigrammePossibilty.png} 
     \caption{Représentation de la base de connaissances stratifiée (Source : Sujet de TP)}
 \end{figure}
 
@@ -70,5 +76,3 @@ $a, e, f$ & 0 & Toujours Consistant (Satisfiable). \\
 
 \section{Conclusion}
 La force de cette approche réside dans la capacité du solveur SAT à gérer la complexité combinatoire du raisonnement logique, tandis que la théorie des possibilités fournit la structure hiérarchique nécessaire pour traiter l'incertitude qualitative. La méthode de dichotomie rend ce processus extrêmement performant, même pour des bases de connaissances volumineuses.
-
-\end{document}

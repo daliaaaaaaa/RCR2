@@ -40,7 +40,8 @@ veryHigh = trapmf(cpuShare, [75 90 100 100]);
 
 %% 3. Visualisation des fonctions d’appartenance
 
-figure;
+
+fig1 = figure;
 subplot(3,1,1);
 plot(cpuLoad,lowLoad,cpuLoad,mediumLoad,cpuLoad,highLoad,'LineWidth',1.5);
 legend("Low","Medium","High");
@@ -55,6 +56,8 @@ subplot(3,1,3);
 plot(cpuShare,veryLow,cpuShare,low,cpuShare,medium,cpuShare,high,cpuShare,veryHigh,'LineWidth',1.5);
 legend("VeryLow","Low","Medium","High","VeryHigh");
 title("CPUShare"); xlabel("CPU (%)"); ylabel("Degré");
+
+saveas(fig1, 'Figure1.png'); % Save the membership functions plot
 
 %% 4. Valeurs d’entrée (exemple de simulation)
 
@@ -112,12 +115,14 @@ fprintf("CPUShare allouée = %.2f %%\n", cpuShareOutput);
 
 %% 9. Sortie floue agrégée
 
-figure;
+
+fig2 = figure;
 plot(cpuShare, aggregated, 'LineWidth', 2);
 grid on;
 title("Sortie floue agrégée");
 xlabel("CPUShare (%)");
 ylabel("Degré d'appartenance");
+saveas(fig2, 'Figure2.png'); % Save the aggregated output plot
 
 %% ===== Fonctions locales =====
 
