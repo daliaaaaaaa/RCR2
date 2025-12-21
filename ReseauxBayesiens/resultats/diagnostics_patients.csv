@@ -1,0 +1,4 @@
+Patient,Âge,P(Grippe),P(COVID-19),P(Allergie)
+Jean Dupont,35,0.9832,0.0200,0.0125
+Marie Martin,28,0.0014,0.0029,0.9818
+Pierre Lambert,45,0.2611,0.9555,0.0658
