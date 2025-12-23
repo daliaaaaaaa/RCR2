@@ -1,8 +1,0 @@
-Scénario,Évidences,P(Cambriolage=Oui)
-Scénario 1: Aucune évidence,None,0.001
-Scénario 2: John appelle,{'JohnAppelle': 'Oui'},0.005690574913551097
-Scénario 3: Mary appelle,{'MaryAppelle': 'Oui'},0.01778016725002881
-Scénario 4: John ET Mary appellent,"{'JohnAppelle': 'Oui', 'MaryAppelle': 'Oui'}",0.08343301864827575
-Scénario 5: John appelle MAIS Mary n'appelle pas,"{'JohnAppelle': 'Oui', 'MaryAppelle': 'Non'}",0.0022703225911483087
-Scénario 6: Alarme sonne,{'Alarme': 'Oui'},0.10762118466054552
-Scénario 7: Alarme + John appelle,"{'Alarme': 'Oui', 'JohnAppelle': 'Oui'}",0.10762118466054552

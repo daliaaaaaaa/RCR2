@@ -1,5 +1,5 @@
 """
-EXEMPLE RÉEL: Diagnostic de Problèmes Informatiques avec la Théorie de Dempster-Shafer
+EXEMPLE REEL: Diagnostic de Problemes Informatiques avec la Theorie de Dempster-Shafer
 =======================================================================================
 
 Scénario: Un ordinateur présente des problèmes de performance et plusieurs tests 
@@ -15,6 +15,10 @@ Hypothèses de diagnostic:
 import numpy as np
 import pandas as pd
 from itertools import combinations, chain
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+from matplotlib.table import Table
+import os
 
 
 class DempsterShaferDiagnosis:
@@ -51,28 +55,51 @@ class DempsterShaferDiagnosis:
             raise ValueError(f"La somme des masses doit être 1.0, obtenu: {total}")
         return {"name": name, "masses": masses}
     
-    def dempster_combination(self, mf1, mf2):
+    def dempster_combination(self, mf1, mf2, show_matrix=True):
         """
         Règle de combinaison de Dempster pour combiner deux fonctions de masse
         """
         combined = {}
         conflict = 0.0
         
+        # Préparer les données pour la matrice
+        hyp1_list = list(mf1['masses'].keys())
+        hyp2_list = list(mf2['masses'].keys())
+        
+        # Créer la matrice de combinaison
+        matrix = np.zeros((len(hyp1_list), len(hyp2_list)))
+        intersection_matrix = []
+        
         # Pour chaque paire de masses
-        for hyp1, mass1 in mf1['masses'].items():
-            for hyp2, mass2 in mf2['masses'].items():
+        for i, hyp1 in enumerate(hyp1_list):
+            mass1 = mf1['masses'][hyp1]
+            row_intersections = []
+            
+            for j, hyp2 in enumerate(hyp2_list):
+                mass2 = mf2['masses'][hyp2]
+                
                 # Intersection des hypothèses
                 intersection = hyp1 & hyp2
+                product = mass1 * mass2
+                matrix[i, j] = product
                 
                 if len(intersection) == 0:
                     # Conflit: hypothèses contradictoires
-                    conflict += mass1 * mass2
+                    conflict += product
+                    row_intersections.append("∅")
                 else:
                     # Combiner les masses
                     if intersection in combined:
-                        combined[intersection] += mass1 * mass2
+                        combined[intersection] += product
                     else:
-                        combined[intersection] = mass1 * mass2
+                        combined[intersection] = product
+                    row_intersections.append(self.format_hypothesis(intersection))
+            
+            intersection_matrix.append(row_intersections)
+        
+        # Afficher la matrice si demandé
+        if show_matrix:
+            self._print_combination_matrix(mf1, mf2, hyp1_list, hyp2_list, matrix, intersection_matrix, conflict)
         
         # Normalisation par (1 - K) où K est le conflit
         if conflict < 1.0:
@@ -86,6 +113,145 @@ class DempsterShaferDiagnosis:
             "masses": combined,
             "conflict": conflict
         }
+    
+    def _print_combination_matrix(self, mf1, mf2, hyp1_list, hyp2_list, matrix, intersection_matrix, conflict):
+        """Affiche la matrice de combinaison de Dempster"""
+        print(f"\n{'='*80}")
+        print(f"MATRICE DE COMBINAISON: {mf1['name']} ⊕ {mf2['name']}")
+        print(f"{'='*80}")
+        
+        # En-têtes des colonnes
+        col_headers = [self.format_hypothesis(h) for h in hyp2_list]
+        col_masses = [f"m₂={mf2['masses'][h]:.3f}" for h in hyp2_list]
+        
+        # Afficher les masses de la source 2
+        print(f"\n{mf2['name']} (Source 2):")
+        for h, m in zip(hyp2_list, col_masses):
+            print(f"  {self.format_hypothesis(h):40s} {m}")
+        
+        print(f"\n{mf1['name']} (Source 1) × {mf2['name']} (Source 2):")
+        print(f"{'-'*80}")
+        
+        # Calculer les largeurs de colonnes
+        col_widths = [max(len(col_headers[j]), 12) for j in range(len(hyp2_list))]
+        
+        # Ligne d'en-tête
+        header = f"{'m₁(A) \\ m₂(B)':25s} | "
+        for j, h in enumerate(hyp2_list):
+            header += f"{self.format_hypothesis(h):^{col_widths[j]}s} | "
+        print(header)
+        print("-" * len(header))
+        
+        # Lignes de la matrice
+        for i, hyp1 in enumerate(hyp1_list):
+            mass1 = mf1['masses'][hyp1]
+            row = f"{self.format_hypothesis(hyp1):23s} | "
+            
+            for j in range(len(hyp2_list)):
+                cell_value = f"{matrix[i,j]:.4f}"
+                row += f"{cell_value:^{col_widths[j]}s} | "
+            
+            print(row)
+            
+            # Ligne avec les intersections
+            intersection_row = f"{'→ A∩B':23s} | "
+            for j in range(len(hyp2_list)):
+                inter = intersection_matrix[i][j]
+                # Tronquer si trop long
+                if len(inter) > col_widths[j]:
+                    inter = inter[:col_widths[j]-2] + ".."
+                intersection_row += f"{inter:^{col_widths[j]}s} | "
+            print(intersection_row)
+            print("-" * len(header))
+        
+        print(f"\n📊 RÉSUMÉ DU CALCUL:")
+        print(f"  • Conflit total (K) = {conflict:.4f} ({conflict*100:.1f}%)")
+        print(f"    → Masse attribuée à l'ensemble vide (contradiction)")
+        print(f"  • Normalisation = 1/(1-K) = 1/{1-conflict:.4f} = {1/(1-conflict):.4f}")
+        print(f"    → Les masses non-conflictuelles sont divisées par ce facteur")
+        print(f"{'='*80}\n")
+        
+        # Exporter la matrice en PNG
+        self._export_matrix_to_png(mf1, mf2, hyp1_list, hyp2_list, matrix, intersection_matrix, conflict)
+    
+    def _export_matrix_to_png(self, mf1, mf2, hyp1_list, hyp2_list, matrix, intersection_matrix, conflict):
+        """Exporte la matrice de combinaison en image PNG"""
+        
+        # Créer le dossier de sortie
+        os.makedirs('images', exist_ok=True)
+        
+        # Nom du fichier
+        filename = f"images/matrice_{mf1['name'].replace(' ', '_')}_{mf2['name'].replace(' ', '_')}.png"
+        
+        # Créer la figure
+        fig, ax = plt.subplots(figsize=(14, max(8, len(hyp1_list) * 1.5)))
+        ax.axis('tight')
+        ax.axis('off')
+        
+        # Préparer les données du tableau
+        col_headers = [self.format_hypothesis(h) for h in hyp2_list]
+        row_headers = [self.format_hypothesis(h) for h in hyp1_list]
+        
+        # Créer les données du tableau
+        table_data = []
+        
+        # En-tête avec les colonnes
+        header_row = ['m₁(A) \\ m₂(B)'] + [f"{h}\nm₂={mf2['masses'][hyp2_list[j]]:.3f}" 
+                                             for j, h in enumerate(col_headers)]
+        table_data.append(header_row)
+        
+        # Lignes de données
+        for i, hyp1 in enumerate(hyp1_list):
+            mass1 = mf1['masses'][hyp1]
+            row = [f"{row_headers[i]}\nm₁={mass1:.3f}"]
+            
+            for j in range(len(hyp2_list)):
+                cell_text = f"{matrix[i,j]:.4f}\n→ {intersection_matrix[i][j]}"
+                row.append(cell_text)
+            
+            table_data.append(row)
+        
+        # Créer le tableau
+        table = ax.table(cellText=table_data, cellLoc='center', loc='center',
+                        bbox=[0, 0, 1, 1])
+        
+        # Styliser le tableau
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 2.5)
+        
+        # Colorer l'en-tête
+        for i in range(len(header_row)):
+            cell = table[(0, i)]
+            cell.set_facecolor('#4472C4')
+            cell.set_text_props(weight='bold', color='white')
+        
+        # Colorer la première colonne
+        for i in range(1, len(table_data)):
+            cell = table[(i, 0)]
+            cell.set_facecolor('#D9E1F2')
+            cell.set_text_props(weight='bold')
+        
+        # Colorer les cellules avec conflit (∅)
+        for i in range(1, len(table_data)):
+            for j in range(1, len(header_row)):
+                cell = table[(i, j)]
+                if '∅' in intersection_matrix[i-1][j-1]:
+                    cell.set_facecolor('#FFE6E6')  # Rouge clair pour conflit
+                else:
+                    cell.set_facecolor('#E8F5E9')  # Vert clair pour non-conflit
+        
+        # Ajouter le résumé en bas (pas de titre principal)
+        summary_text = (f"Conflit total (K) = {conflict:.4f} ({conflict*100:.1f}%)\n"
+                       f"Normalisation = 1/(1-K) = {1/(1-conflict):.4f}")
+        fig.text(0.5, 0.02, summary_text, ha='center', fontsize=10, 
+                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+        
+        # Sauvegarder
+        plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
+        plt.close()
+        
+        print(f"  ✓ Matrice exportée: {filename}")
     
     def calculate_belief(self, mass_function, hypothesis):
         """
@@ -123,11 +289,34 @@ class DempsterShaferDiagnosis:
         sorted_masses = sorted(mass_function['masses'].items(), 
                               key=lambda x: x[1], reverse=True)
         
+        # Créer une matrice visuelle
+        print(f"\n{'Hypothèse':50s} | {'Masse':10s} | {'Visuel':20s}")
+        print(f"{'-'*85}")
+        
         for hyp, mass in sorted_masses:
-            print(f"  m({self.format_hypothesis(hyp):40s}) = {mass:.4f}")
+            # Barre de progression
+            bar_length = int(mass * 50)
+            bar = '█' * bar_length + '░' * (50 - bar_length)
+            bar_short = bar[:20]  # Limiter pour l'affichage
+            
+            print(f"m({self.format_hypothesis(hyp):47s}) = {mass:6.4f}   | {bar_short}")
         
         if 'conflict' in mass_function:
-            print(f"\n  Conflit détecté: {mass_function['conflict']:.4f}")
+            print(f"\n  ⚠️  Conflit détecté: {mass_function['conflict']:.4f} ({mass_function['conflict']*100:.1f}%)")
+        
+        # Tableau récapitulatif des masses
+        print(f"\n📊 TABLEAU RÉCAPITULATIF:")
+        data = []
+        for hyp, mass in sorted_masses:
+            data.append({
+                'Hypothèse': self.format_hypothesis(hyp),
+                'Masse': f"{mass:.4f}",
+                'Pourcentage': f"{mass*100:.2f}%"
+            })
+        
+        df = pd.DataFrame(data)
+        print(df.to_string(index=False))
+        print(f"{'='*70}")
     
     def print_belief_plausibility(self, mass_function):
         """Affiche Bel et Pl pour chaque problème"""
@@ -158,9 +347,9 @@ def main():
     SCÉNARIO RÉEL: Diagnostic d'un ordinateur avec problèmes de performance
     """
     
-    print("\n" + "╔" + "="*68 + "╗")
-    print("║" + " "*8 + "EXEMPLE RÉEL: DIAGNOSTIC INFORMATIQUE AVEC D-S" + " "*14 + "║")
-    print("╚" + "="*68 + "╝\n")
+    print("\n" + "=" + "="*68 + "=")
+    print("|" + " "*8 + "EXEMPLE REEL: DIAGNOSTIC INFORMATIQUE AVEC D-S" + " "*14 + "|")
+    print("=" + "="*68 + "=\n")
     
     ds = DempsterShaferDiagnosis()
     
@@ -197,10 +386,10 @@ Contexte:
     print("="*70)
     print("""
 Observations du technicien:
-  - Ventilateur CPU bruyant → Possiblement encrassé ou surchauffe
-  - Boîtier très chaud au toucher → Problème de refroidissement probable
+  - Ventilateur CPU bruyant => Possiblement encrasse ou surchauffe
+  - Boitier tres chaud au toucher => Probleme de refroidissement probable
   - Pas de bruit de clic du disque dur
-  - Accumulation de poussière visible
+  - Accumulation de poussiere visible
     """)
     
     source1 = ds.create_mass_function(
@@ -360,53 +549,53 @@ Interprétation:
         """)
     
     # Sauvegarder les résultats
-    df.to_csv('diagnostic_results.csv', index=False)
+    df.to_csv('resultats/diagnostic_results.csv', index=False)
     print(f"\n{'='*70}")
-    print("Résultats sauvegardés dans: diagnostic_results.csv")
+    print("✓ Résultats sauvegardés dans: BeliefFunctions/resultats/diagnostic_results.csv")
     print(f"{'='*70}\n")
     
-    # ========================================================================
-    # ANALYSE DE SENSIBILITÉ
-    # ========================================================================
-    print("\n" + "="*70)
-    print("ANALYSE DE SENSIBILITÉ")
-    print("="*70)
-    print("\nQue se passe-t-il si le test RAM avait détecté des ERREURS?")
+#     # ========================================================================
+#     # ANALYSE DE SENSIBILITÉ
+#     # ========================================================================
+#     print("\n" + "="*70)
+#     print("ANALYSE DE SENSIBILITÉ")
+#     print("="*70)
+#     print("\nQue se passe-t-il si le test RAM avait détecté des ERREURS?")
     
-    # Modifier la source 3
-    source3_errors = ds.create_mass_function(
-        "Test MemTest86 (AVEC ERREURS)",
-        {
-            frozenset(['RAM_Defaillante']): 0.90,      # Forte évidence pour RAM défaillante
-            frozenset(ds.diseases): 0.10                # Petite incertitude
-        }
-    )
+#     # Modifier la source 3
+#     source3_errors = ds.create_mass_function(
+#         "Test MemTest86 (AVEC ERREURS)",
+#         {
+#             frozenset(['RAM_Defaillante']): 0.90,      # Forte évidence pour RAM défaillante
+#             frozenset(ds.diseases): 0.10                # Petite incertitude
+#         }
+#     )
     
-    combined_alt1 = ds.dempster_combination(source1, source2)
-    final_alt = ds.dempster_combination(combined_alt1, source3_errors)
+#     combined_alt1 = ds.dempster_combination(source1, source2)
+#     final_alt = ds.dempster_combination(combined_alt1, source3_errors)
     
-    ds.print_mass_function(final_alt)
-    alt_results = ds.print_belief_plausibility(final_alt)
+#     ds.print_mass_function(final_alt)
+#     alt_results = ds.print_belief_plausibility(final_alt)
     
-    df_alt = pd.DataFrame(alt_results).sort_values('Belief', ascending=False)
-    print(f"\nNouveau diagnostic: {df_alt.iloc[0]['Probleme']}")
-    print(f"Croyance: {df_alt.iloc[0]['Belief']:.4f} ({df_alt.iloc[0]['Belief']*100:.1f}%)")
+#     df_alt = pd.DataFrame(alt_results).sort_values('Belief', ascending=False)
+#     print(f"\nNouveau diagnostic: {df_alt.iloc[0]['Probleme']}")
+#     print(f"Croyance: {df_alt.iloc[0]['Belief']:.4f} ({df_alt.iloc[0]['Belief']*100:.1f}%)")
     
-    print("\n" + "="*70)
-    print("CONCLUSION")
-    print("="*70)
-    print("""
-La théorie de Dempster-Shafer permet de:
-  ✓ Combiner plusieurs sources d'information imparfaites
-  ✓ Quantifier l'incertitude de manière explicite
-  ✓ Prendre des décisions robustes même avec informations partielles
-  ✓ Détecter les conflits entre sources
+#     print("\n" + "="*70)
+#     print("CONCLUSION")
+#     print("="*70)
+#     print("""
+# La théorie de Dempster-Shafer permet de:
+#   ✓ Combiner plusieurs sources d'information imparfaites
+#   ✓ Quantifier l'incertitude de manière explicite
+#   ✓ Prendre des décisions robustes même avec informations partielles
+#   ✓ Détecter les conflits entre sources
   
-Dans ce cas:
-  → Diagnostic clair: SURCHAUFFE CPU
-  → Confiance élevée grâce à la convergence des tests
-  → Action corrective bien définie et économique
-    """)
+# Dans ce cas:
+#   → Diagnostic clair: SURCHAUFFE CPU
+#   → Confiance élevée grâce à la convergence des tests
+#   → Action corrective bien définie et économique
+#     """)
 
 
 if __name__ == "__main__":

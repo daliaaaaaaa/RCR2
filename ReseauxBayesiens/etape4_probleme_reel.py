@@ -40,7 +40,7 @@ Structure du réseau (connexions multiples):
 
 from pgmpy.models import DiscreteBayesianNetwork
 from pgmpy.factors.discrete import TabularCPD
-from pgmpy.inference import VariableElimination
+from pgmpy.inference import VariableElimination, BeliefPropagation
 import matplotlib.pyplot as plt
 import networkx as nx
 import pandas as pd
@@ -300,7 +300,7 @@ class DiagnosticMedical:
         print(f"  Symptômes: {', '.join(symptomes)}")
         print(f"  Tests: {', '.join(tests)}")
     
-    def visualiser_reseau(self, save_path='resultats/diagnostic_medical_structure.png'):
+    def visualiser_reseau(self, save_path='images/diagnostic_medical_structure.png'):
         """
         Visualiser le réseau bayésien
         """
@@ -376,14 +376,27 @@ class DiagnosticMedical:
         print(f"\n✓ Graphique sauvegardé: {save_path}")
         plt.show()
     
-    def cas_clinique(self, nom_patient, age, evidences):
+    def cas_clinique(self, nom_patient, age, evidences, use_belief_propagation=False):
         """
         Analyser un cas clinique avec inférence bayésienne
+        
+        Args:
+            nom_patient: Nom du patient
+            age: Âge du patient
+            evidences: Dictionnaire des observations
+            use_belief_propagation: Si True, utilise Belief Propagation au lieu de Variable Elimination
         """
-        inference = VariableElimination(self.model)
+        # Choisir l'algorithme d'inférence
+        if use_belief_propagation:
+            inference = BeliefPropagation(self.model)
+            algo_name = "Belief Propagation"
+        else:
+            inference = VariableElimination(self.model)
+            algo_name = "Variable Elimination"
         
         print("\n" + "="*80)
         print(f"CAS CLINIQUE: {nom_patient}, {age} ans")
+        print(f"Algorithme d'inférence: {algo_name}")
         print("="*80)
         
         print("\n📋 Observations cliniques:")
@@ -434,7 +447,7 @@ class DiagnosticMedical:
     
     def scenarios_cliniques(self):
         """
-        Tester plusieurs cas cliniques réalistes
+        Tester plusieurs cas cliniques réalistes avec les deux algorithmes
         """
         print("\n" + "╔" + "="*78 + "╗")
         print("║" + " "*20 + "SCÉNARIOS CLINIQUES RÉELS" + " "*33 + "║")
@@ -510,7 +523,99 @@ class DiagnosticMedical:
         print(df.to_string(index=False))
         
         df.to_csv('resultats/diagnostics_patients.csv', index=False)
-        print("\n✓ Résultats sauvegardés: resultats/diagnostics_patients.csv")
+        print("\n✓ Résultats sauvegardés: ReseauxBayesiens/resultats/diagnostics_patients.csv")
+    
+    def comparer_algorithmes(self):
+        """
+        Comparer Variable Elimination et Belief Propagation
+        """
+        print("\n" + "╔" + "="*78 + "╗")
+        print("║" + " "*15 + "COMPARAISON DES ALGORITHMES D'INFÉRENCE" + " "*24 + "║")
+        print("╚" + "="*78 + "╝")
+        
+        # Cas test
+        evidences = {
+            'Saison': 'Hiver',
+            'VaccinationCOVID': 'Oui',
+            'Fievre': 'Oui',
+            'Toux': 'Oui',
+            'Fatigue': 'Oui'
+        }
+        
+        print("\n📋 Observations communes:")
+        for var, val in evidences.items():
+            print(f"  • {var}: {val}")
+        
+        # Test avec Variable Elimination
+        print("\n" + "─"*80)
+        print("1️⃣  VARIABLE ELIMINATION (Élimination de Variables)")
+        print("─"*80)
+        print("   • Algorithme: Exact")
+        print("   • Méthode: Élimination successive des variables")
+        print("   • Complexité: Dépend de l'ordre d'élimination")
+        
+        import time
+        start = time.time()
+        inference_ve = VariableElimination(self.model)
+        result_ve = {}
+        for maladie in ['Grippe', 'COVID19', 'Allergie']:
+            res = inference_ve.query(variables=[maladie], evidence=evidences)
+            result_ve[maladie] = res.values[1]
+        time_ve = time.time() - start
+        
+        print(f"\n   Résultats:")
+        for maladie, prob in result_ve.items():
+            print(f"   • P({maladie}=Oui) = {prob:.4f} ({prob*100:.2f}%)")
+        print(f"   ⏱️  Temps d'exécution: {time_ve*1000:.2f} ms")
+        
+        # Test avec Belief Propagation
+        print("\n" + "─"*80)
+        print("2️⃣  BELIEF PROPAGATION (Propagation de Croyance)")
+        print("─"*80)
+        print("   • Algorithme: Exact pour les arbres/polyarbres")
+        print("   • Méthode: Passage de messages entre nœuds")
+        print("   • Complexité: Linéaire pour les arbres")
+        
+        start = time.time()
+        inference_bp = BeliefPropagation(self.model)
+        result_bp = {}
+        for maladie in ['Grippe', 'COVID19', 'Allergie']:
+            res = inference_bp.query(variables=[maladie], evidence=evidences)
+            result_bp[maladie] = res.values[1]
+        time_bp = time.time() - start
+        
+        print(f"\n   Résultats:")
+        for maladie, prob in result_bp.items():
+            print(f"   • P({maladie}=Oui) = {prob:.4f} ({prob*100:.2f}%)")
+        print(f"   ⏱️  Temps d'exécution: {time_bp*1000:.2f} ms")
+        
+        # Comparaison
+        print("\n" + "="*80)
+        print("📊 ANALYSE COMPARATIVE")
+        print("="*80)
+        
+        print(f"\n⏱️  Performance:")
+        print(f"   • Variable Elimination: {time_ve*1000:.2f} ms")
+        print(f"   • Belief Propagation:   {time_bp*1000:.2f} ms")
+        if time_ve < time_bp:
+            print(f"   ➜ Variable Elimination est {time_bp/time_ve:.2f}x plus rapide")
+        else:
+            print(f"   ➜ Belief Propagation est {time_ve/time_bp:.2f}x plus rapide")
+        
+        print(f"\n✓ Précision:")
+        print(f"   • Les deux algorithmes donnent des résultats identiques (algorithmes exacts)")
+        
+        print(f"\n💡 Quand utiliser chaque algorithme?")
+        print(f"   • Variable Elimination:")
+        print(f"     - Réseaux de taille moyenne")
+        print(f"     - Requêtes ponctuelles")
+        print(f"     - Graphes généraux (avec cycles)")
+        print(f"   • Belief Propagation:")
+        print(f"     - Arbres et polyarbres")
+        print(f"     - Requêtes multiples")
+        print(f"     - Mise à jour incrémentale")
+        
+        print("="*80)
 
 
 def main():
@@ -529,6 +634,9 @@ def main():
     
     # Visualiser le réseau
     diagnostic.visualiser_reseau()
+    
+    # Comparer les algorithmes d'inférence
+    diagnostic.comparer_algorithmes()
     
     # Analyser des cas cliniques
     diagnostic.scenarios_cliniques()
