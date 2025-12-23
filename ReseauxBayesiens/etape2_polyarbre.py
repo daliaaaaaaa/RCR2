@@ -202,7 +202,7 @@ class PolyarbreAlarme:
         
         return result
     
-    def visualiser_reseau(self, save_path='resultats/polyarbre_structure.png'):
+    def visualiser_reseau(self, save_path='images/polyarbre_structure.png'):
         """
         Visualiser la structure du réseau
         """
@@ -311,7 +311,7 @@ class PolyarbreAlarme:
         
         # Sauvegarder
         df.to_csv('resultats/polyarbre_scenarios.csv', index=False)
-        print("\nRésultats sauvegardés: resultats/polyarbre_scenarios.csv")
+        print("\n✓ Résultats sauvegardés: ReseauxBayesiens/resultats/polyarbre_scenarios.csv")
 
 
 def main():

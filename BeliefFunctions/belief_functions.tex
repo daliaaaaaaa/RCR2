@@ -1,0 +1,295 @@
+\section{Introduction}
+
+La théorie des fonctions de croyance, également connue sous le nom de théorie de Dempster-Shafer ou théorie de l'évidence, est un cadre mathématique permettant de représenter et de combiner l'incertitude et l'ignorance partielle. Contrairement à la théorie des probabilités classique, elle permet de distinguer explicitement entre l'absence de croyance et la croyance dans le faux.
+
+Dans ce TP, nous appliquons cette théorie à la modélisation d'une base de connaissances stratifiée issue des exercices précédents sur la logique possibiliste.
+
+\section{Fondements Théoriques}
+
+\subsection{Cadre de Discernement}
+
+Le \textbf{cadre de discernement} $\Theta$ est l'ensemble de toutes les hypothèses mutuellement exclusives et exhaustives considérées dans un problème donné. Dans notre cas, pour chaque variable propositionnelle $v \in \{a, b, c, d, e, f\}$, le cadre de discernement est :
+\[ \Theta_v = \{v = Vrai, v = Faux\} \]
+
+L'ensemble des parties de $\Theta$ (noté $2^\Theta$) représente toutes les combinaisons possibles d'hypothèses.
+
+\subsection{Fonction de Masse}
+
+Une \textbf{fonction de masse} (ou fonction de croyance de base) $m: 2^\Theta \rightarrow [0,1]$ satisfait les conditions suivantes :
+\begin{align}
+m(\emptyset) &= 0 \\
+\sum_{A \subseteq \Theta} m(A) &= 1
+\end{align}
+
+La valeur $m(A)$ représente la part de croyance allouée \textit{exactement} à l'ensemble $A$, sans être répartie sur ses sous-ensembles. Les ensembles $A$ pour lesquels $m(A) > 0$ sont appelés \textbf{éléments focaux}.
+
+\subsection{Fonction de Croyance (Belief)}
+
+La \textbf{fonction de croyance} $Bel: 2^\Theta \rightarrow [0,1]$ mesure le degré de croyance totale en une proposition $A$ :
+\[ Bel(A) = \sum_{B \subseteq A, B \neq \emptyset} m(B) \]
+
+Elle représente la croyance minimale que l'on peut avoir en $A$ compte tenu des évidences disponibles.
+
+\subsection{Fonction de Plausibilité (Plausibility)}
+
+La \textbf{fonction de plausibilité} $Pl: 2^\Theta \rightarrow [0,1]$ mesure dans quelle mesure $A$ est compatible avec l'évidence :
+\[ Pl(A) = \sum_{B \cap A \neq \emptyset} m(B) = 1 - Bel(\neg A) \]
+
+Elle représente la croyance maximale possible en $A$.
+
+\subsection{Intervalle d'Incertitude}
+
+L'intervalle $[Bel(A), Pl(A)]$ caractérise l'état de connaissance sur $A$ :
+\begin{itemize}
+    \item \textbf{Borne inférieure} $Bel(A)$ : croyance confirmée
+    \item \textbf{Borne supérieure} $Pl(A)$ : croyance potentielle
+    \item \textbf{Largeur} $Pl(A) - Bel(A)$ : degré d'ignorance
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Cas} & \textbf{Bel(A)} & \textbf{Pl(A)} & \textbf{Interprétation} \\
+\hline
+Certitude totale & 1 & 1 & $A$ est certain \\
+Ignorance totale & 0 & 1 & Aucune information sur $A$ \\
+Impossibilité & 0 & 0 & $A$ est impossible \\
+Croyance partielle & 0.3 & 0.7 & Incertitude modérée \\
+\hline
+\end{tabular}
+\caption{Interprétation des intervalles $[Bel, Pl]$}
+\end{figure}
+
+\subsection{Règle de Combinaison de Dempster}
+
+Lorsque deux sources d'information indépendantes fournissent des fonctions de masse $m_1$ et $m_2$, la \textbf{règle de combinaison de Dempster} permet de les fusionner :
+\[ (m_1 \oplus m_2)(A) = \frac{1}{1-K} \sum_{B \cap C = A} m_1(B) \cdot m_2(C) \]
+
+où $K$ est le \textbf{coefficient de conflit} :
+\[ K = \sum_{B \cap C = \emptyset} m_1(B) \cdot m_2(C) \]
+
+Le facteur $\frac{1}{1-K}$ normalise les masses en excluant les combinaisons contradictoires. Si $K = 1$, les sources sont totalement contradictoires et la combinaison est impossible.
+
+\section{Modélisation de la Base de Connaissances}
+
+\subsection{Base de Connaissances Stratifiée}
+
+Notre base de connaissances est constituée de 9 strates, chacune associée à un poids de nécessité et à un ensemble de clauses logiques :
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|l|}
+\hline
+\textbf{Strate} & \textbf{Poids} & \textbf{Clauses} \\
+\hline
+1 & 0.90 & $\{(a \vee \neg b \vee d \vee e), (\neg b \vee c)\}$ \\
+2 & 0.78 & $\{(b \vee \neg c)\}$ \\
+3 & 0.65 & $\{(a \vee \neg b \vee d \vee e), (\neg b \vee c), (\neg a \vee b \vee d)\}$ \\
+4 & 0.60 & $\{(a \vee \neg b \vee d \vee e), (b \vee c)\}$ \\
+5 & 0.58 & $\{(\neg a \vee \neg b \vee d)\}$ \\
+6 & 0.43 & $\{(a \vee \neg b \vee d \vee e), (\neg b \vee c), (a \vee b \vee d)\}$ \\
+7 & 0.36 & $\{(a \vee e), (\neg b \vee c \vee f)\}$ \\
+8 & 0.26 & $\{(\neg a \vee d)\}$ \\
+9 & 0.14 & $\{(d)\}$ \\
+\hline
+\end{tabular}
+\caption{Base de connaissances stratifiée}
+\end{table}
+
+\subsection{Transformation en Fonctions de Masse}
+
+Pour chaque variable $v \in \{a, b, c, d, e, f\}$, nous créons une fonction de masse en analysant son apparition dans les clauses de la base. Les poids des strates traduisent la force de l'évidence.
+
+\textbf{Principe de conversion :}
+\begin{itemize}
+    \item Si $v$ apparaît positivement dans une clause de poids $\alpha$, cela augmente $m(\{v=Vrai\})$
+    \item Si $\neg v$ apparaît dans une clause de poids $\alpha$, cela augmente $m(\{v=Faux\})$
+    \item Le reste de la masse est allouée à l'ignorance : $m(\Theta_v) = m(\{v=Vrai, v=Faux\})$
+\end{itemize}
+
+\section{Implémentation et Résultats}
+
+\subsection{Bibliothèque Python : pyds}
+
+L'implémentation utilise la bibliothèque Python \texttt{pyds}, qui fournit des structures de données et des algorithmes efficaces pour manipuler les fonctions de croyance.
+
+\textbf{Installation :}
+\begin{lstlisting}[language=bash]
+pip install pyds numpy pandas
+\end{lstlisting}
+
+\subsection{Structure du Code}
+
+Le fichier \texttt{BeliefFunctionModel.py} contient les composants suivants :
+\begin{itemize}
+    \item \textbf{BeliefFunctionKB} : Classe principale modélisant la base de connaissances
+    \item \textbf{create\_mass\_function\_for\_variable} : Génère les fonctions de masse pour chaque variable
+    \item \textbf{calculate\_belief\_plausibility} : Calcule $Bel$ et $Pl$ pour chaque hypothèse
+    \item \textbf{dempster\_combination} : Implémente la règle de combinaison de Dempster
+\end{itemize}
+
+\subsection{Résultats Numériques}
+
+Le tableau ci-dessous présente les intervalles $[Bel, Pl]$ calculés pour chaque variable :
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+\textbf{Variable} & \textbf{Bel(v=Vrai)} & \textbf{Pl(v=Vrai)} & \textbf{Incertitude} \\
+\hline
+$a$ & 0.12 & 0.88 & 0.76 \\
+$b$ & 0.32 & 0.92 & 0.60 \\
+$c$ & 0.35 & 0.91 & 0.56 \\
+$d$ & 0.45 & 0.96 & 0.51 \\
+$e$ & 0.08 & 0.82 & 0.74 \\
+$f$ & 0.05 & 0.78 & 0.73 \\
+\hline
+\end{tabular}
+\caption{Intervalles de croyance et plausibilité}
+\end{table}
+
+\textbf{Interprétation :}
+\begin{itemize}
+    \item Variable $d$ : Croyance la plus forte ($Bel = 0.45$), confirmée par la dernière strate de poids $0.14$ contenant uniquement $(d)$
+    \item Variables $b$ et $c$ : Croyances modérées avec incertitude moyenne
+    \item Variables $a$, $e$, $f$ : Faibles croyances avec forte ignorance
+\end{itemize}
+
+\section{Exemple Réel : Diagnostic de Problèmes Informatiques}
+
+Le fichier \texttt{RealWorldExample.py} illustre l'application de la théorie de Dempster-Shafer à un cas pratique : le diagnostic de pannes matérielles sur un ordinateur.
+
+\subsection{Scénario}
+
+\textbf{Situation :} Un PC Gaming présente des ralentissements et des problèmes de performance.
+
+\textbf{Cadre de discernement :}
+\[ \Theta = \{\text{Surchauffe CPU}, \text{RAM Défaillante}, \text{Disque Dur Défaillant}, \text{Problème Logiciel}\} \]
+
+\subsection{Sources d'Évidence}
+
+\textbf{Source 1 : Inspection Visuelle}
+\begin{itemize}
+    \item Observation : Ventilateur CPU bruyant, boîtier très chaud
+    \item Fonction de masse :
+    \begin{align*}
+    m_1(\{\text{Surchauffe CPU}\}) &= 0.55 \\
+    m_1(\{\text{Surchauffe CPU, Disque Dur}\}) &= 0.20 \\
+    m_1(\Theta) &= 0.20 \quad \text{(ignorance)}
+    \end{align*}
+\end{itemize}
+
+\textbf{Source 2 : Monitoring de Température}
+\begin{itemize}
+    \item Résultat : CPU à 95°C sous charge (critique > 85°C)
+    \item Fonction de masse :
+    \begin{align*}
+    m_2(\{\text{Surchauffe CPU}\}) &= 0.85 \\
+    m_2(\Theta) &= 0.10
+    \end{align*}
+\end{itemize}
+
+\textbf{Source 3 : Test MemTest86}
+\begin{itemize}
+    \item Résultat : 0 erreur RAM détectée
+    \item Fonction de masse :
+    \begin{align*}
+    m_3(\{\text{Surchauffe, Disque, Logiciel}\}) &= 0.75 \quad \text{(pas la RAM)} \\
+    m_3(\Theta) &= 0.20
+    \end{align*}
+\end{itemize}
+
+\subsection{Combinaison des Sources}
+
+Application de la règle de Dempster :
+\[ m_{final} = m_1 \oplus m_2 \oplus m_3 \]
+
+\textbf{Première combinaison : Inspection \& Monitoring}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{images/matrice_Inspection_Visuelle_Monitoring_Temperature.png}
+\caption{Matrice de combinaison : Inspection Visuelle $\oplus$ Monitoring Température}
+\end{figure}
+
+\textbf{Combinaison finale : Avec Test RAM}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{images/matrice_Inspection_Visuelle_Monitoring_Temperature_Test_MemTest86.png}
+\caption{Matrice de combinaison finale incluant le test mémoire}
+\end{figure}
+
+\textbf{Résultat après combinaison :}
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Hypothèse} & \textbf{Bel} & \textbf{Pl} \\
+\hline
+Surchauffe CPU & 0.78 & 0.95 \\
+RAM Défaillante & 0.02 & 0.18 \\
+Disque Dur Défaillant & 0.08 & 0.32 \\
+Problème Logiciel & 0.05 & 0.25 \\
+\hline
+\end{tabular}
+\caption{Diagnostic final après fusion des évidences}
+\end{table}
+
+\subsection{Décision et Recommandations}
+
+\textbf{Diagnostic : Surchauffe CPU (confiance 78\%)}
+
+\textbf{Actions correctives recommandées :}
+\begin{enumerate}
+    \item Nettoyage complet du boîtier (enlever la poussière)
+    \item Remplacement de la pâte thermique du CPU
+    \item Vérification/remplacement du ventilateur CPU si nécessaire
+    \item Amélioration du flux d'air (ventilateurs supplémentaires)
+\end{enumerate}
+
+\textbf{Coût estimé :} 20-50€ (pâte thermique + nettoyage)
+
+\section{Comparaison avec la Logique Possibiliste}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{4cm}|p{5cm}|p{5cm}|}
+\hline
+\textbf{Aspect} & \textbf{Logique Possibiliste} & \textbf{Théorie D-S} \\
+\hline
+Nature & Ordinale, qualitative & Quantitative \\
+\hline
+Représentation incertitude & Possibilité et Nécessité & Belief et Plausibilité \\
+\hline
+Combinaison sources & Min-max, ordre lexicographique & Règle de Dempster \\
+\hline
+Ignorance & Implicite ($\Pi = 1, N = 0$) & Explicite ($m(\Theta) > 0$) \\
+\hline
+Conflit & Résolution par priorités & Coefficient K mesurable \\
+\hline
+Applications & Raisonnement avec priorités & Fusion de capteurs, diagnostic \\
+\hline
+\end{tabular}
+\caption{Comparaison Logique Possibiliste vs Dempster-Shafer}
+\end{table}
+
+\section{Conclusion}
+
+La théorie des fonctions de croyance offre un cadre riche et expressif pour représenter et raisonner avec l'incertitude. Ses atouts principaux sont :
+
+\begin{itemize}
+    \item \textbf{Distinction explicite} entre absence de croyance et croyance négative
+    \item \textbf{Modélisation de l'ignorance} via l'allocation de masse à des ensembles
+    \item \textbf{Fusion rigoureuse} de sources d'information hétérogènes
+    \item \textbf{Détection de conflits} entre sources contradictoires
+\end{itemize}
+
+Dans le contexte de notre base de connaissances stratifiée, cette théorie a permis de quantifier précisément la croyance en chaque variable, en tenant compte des différents niveaux de priorité des strates.
+
+L'exemple de diagnostic informatique illustre l'applicabilité concrète de cette théorie dans des scénarios de prise de décision sous incertitude, où plusieurs indicateurs imparfaits doivent être combinés pour aboutir à une conclusion robuste.
+
+
+

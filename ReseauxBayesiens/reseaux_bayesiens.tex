@@ -1,0 +1,683 @@
+\section{Introduction}
+
+Les réseaux bayésiens, également appelés réseaux de croyance ou réseaux causaux, sont des modèles graphiques probabilistes qui représentent un ensemble de variables aléatoires et leurs dépendances conditionnelles via un graphe acyclique dirigé (DAG - Directed Acyclic Graph).
+
+Ils constituent un outil puissant pour :
+\begin{itemize}
+    \item Représenter des relations causales complexes
+    \item Raisonner sous incertitude avec des informations incomplètes
+    \item Effectuer des inférences probabilistes efficaces
+    \item Modéliser des problèmes de diagnostic, prédiction et prise de décision
+\end{itemize}
+
+Dans ce TP, nous explorons trois types de structures de réseaux bayésiens et appliquons ces concepts à un cas réel de diagnostic médical.
+
+\section{Fondements Théoriques}
+
+\subsection{Définition Formelle}
+
+Un réseau bayésien est un couple $\mathcal{B} = (G, P)$ où :
+\begin{itemize}
+    \item $G = (V, E)$ est un graphe acyclique dirigé (DAG)
+    \item $V$ est l'ensemble des nœuds représentant les variables aléatoires
+    \item $E$ est l'ensemble des arêtes représentant les dépendances directes
+    \item $P$ est un ensemble de distributions de probabilité conditionnelles (CPD)
+\end{itemize}
+
+\subsection{Hypothèse de Markov}
+
+Un nœud est \textbf{conditionnellement indépendant} de tous ses non-descendants, sachant ses parents :
+\[ X_i \perp \!\!\! \perp \text{NonDescendants}(X_i) \mid \text{Parents}(X_i) \]
+
+Cette propriété permet de factoriser la distribution jointe :
+\[ P(X_1, X_2, \ldots, X_n) = \prod_{i=1}^{n} P(X_i \mid \text{Parents}(X_i)) \]
+
+\subsection{Distribution de Probabilité Conditionnelle (CPD)}
+
+Pour chaque variable $X_i$ avec parents $Pa(X_i)$, on définit :
+\[ P(X_i \mid Pa(X_i)) \]
+
+\textbf{Exemple :} Si $X$ a deux parents binaires $Y$ et $Z$ :
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+$Y$ & $Z$ & $P(X=0|Y,Z)$ & $P(X=1|Y,Z)$ \\
+\hline
+0 & 0 & 0.9 & 0.1 \\
+0 & 1 & 0.7 & 0.3 \\
+1 & 0 & 0.6 & 0.4 \\
+1 & 1 & 0.1 & 0.9 \\
+\hline
+\end{tabular}
+\caption{Exemple de CPD pour $P(X|Y,Z)$}
+\end{table}
+
+\subsection{Inférence dans les Réseaux Bayésiens}
+
+L'inférence consiste à calculer :
+\[ P(\text{Query} \mid \text{Evidence}) \]
+
+\textbf{Méthodes principales :}
+\begin{itemize}
+    \item \textbf{Élimination de variables} : Marginalisation successive des variables non pertinentes
+    \item \textbf{Propagation de croyance (Belief Propagation)} : Passage de messages dans le graphe
+    \item \textbf{MCMC} : Méthodes de Monte-Carlo pour réseaux complexes
+\end{itemize}
+
+\section{Algorithmes d'Inférence Détaillés}
+
+\subsection{Variable Elimination (Élimination de Variables)}
+
+\subsubsection{Principe}
+
+L'algorithme d'élimination de variables est une méthode d'\textbf{inférence exacte} qui calcule $P(Q \mid E)$ en :
+\begin{enumerate}
+    \item Fixant les variables d'évidence à leurs valeurs observées
+    \item Éliminant successivement les variables cachées (ni query ni évidence)
+    \item Marginalisant pour obtenir la distribution finale
+\end{enumerate}
+
+\subsubsection{Algorithme Détaillé}
+
+\textbf{Entrée :}
+\begin{itemize}
+    \item Réseau bayésien $\mathcal{B} = (G, P)$
+    \item Variables de requête $Q$
+    \item Évidences $E = e$
+\end{itemize}
+
+\textbf{Étapes :}
+\begin{enumerate}
+    \item \textbf{Restriction} : Fixer les variables d'évidence dans tous les CPDs
+    \[ \phi'_i = \phi_i[E=e] \]
+    
+    \item \textbf{Élimination} : Pour chaque variable cachée $X_i$ (dans un ordre optimal) :
+    \begin{itemize}
+        \item Collecter tous les facteurs mentionnant $X_i$ : $\{\phi_1, \ldots, \phi_k\}$
+        \item Calculer le produit : $\psi = \phi_1 \times \cdots \times \phi_k$
+        \item Marginaliser $X_i$ : $\tau = \sum_{X_i} \psi$
+        \item Remplacer les facteurs par $\tau$
+    \end{itemize}
+    
+    \item \textbf{Normalisation} : Calculer
+    \[ P(Q \mid E=e) = \frac{\prod \text{facteurs restants}}{\sum_Q \prod \text{facteurs restants}} \]
+\end{enumerate}
+
+\subsubsection{Exemple d'Exécution}
+
+\textbf{Réseau simple :} $A \rightarrow B \rightarrow C$
+
+Calculer $P(C \mid A=a)$ :
+
+\begin{align*}
+P(C \mid A=a) &= \frac{P(C, A=a)}{P(A=a)} \\
+&= \frac{\sum_B P(A=a) \cdot P(B \mid A=a) \cdot P(C \mid B)}{P(A=a)} \\
+&= \sum_B P(B \mid A=a) \cdot P(C \mid B)
+\end{align*}
+
+\textbf{Ordre d'élimination :} $B$ (seule variable cachée)
+
+\subsubsection{Complexité}
+
+La complexité dépend de l'\textbf{ordre d'élimination} et de la \textbf{largeur d'arbre} :
+\[ \text{Complexité} = O(n \cdot d^{w+1}) \]
+où :
+\begin{itemize}
+    \item $n$ : nombre de variables
+    \item $d$ : taille maximale du domaine
+    \item $w$ : largeur induite (taille du plus grand facteur créé)
+\end{itemize}
+
+\textbf{Note :} Trouver l'ordre optimal est NP-difficile, mais des heuristiques existent (min-degree, min-fill).
+
+\subsection{Belief Propagation (Propagation de Croyance)}
+
+\subsubsection{Principe}
+
+Belief Propagation est un algorithme de \textbf{passage de messages} dans le graphe :
+\begin{itemize}
+    \item Chaque nœud envoie des messages à ses voisins
+    \item Les messages représentent des croyances (distributions marginales)
+    \item Les croyances convergent vers les marginales exactes
+\end{itemize}
+
+\subsubsection{Algorithme pour les Arbres}
+
+Pour les \textbf{arbres et polyarbres}, BP donne des résultats \textbf{exacts} en temps linéaire.
+
+\textbf{Notation :}
+\begin{itemize}
+    \item $\mu_{X \rightarrow Y}(y)$ : message de $X$ vers $Y$
+    \item $\pi_X(x)$ : croyance (belief) en $X$
+\end{itemize}
+
+\textbf{Messages :}
+\[ \mu_{X \rightarrow Y}(y) = \sum_{x} P(y \mid x) \cdot \pi_X(x) \cdot \prod_{Z \in \text{pa}(X) \setminus \{Y\}} \mu_{Z \rightarrow X}(x) \]
+
+\textbf{Croyances :}
+\[ \pi_X(x) \propto P(x \mid \text{pa}(X)) \cdot \prod_{Y \in \text{ch}(X)} \mu_{Y \rightarrow X}(x) \cdot \prod_{Z \in \text{pa}(X)} \mu_{Z \rightarrow X}(x) \]
+
+\subsubsection{Algorithme pour les Graphes Généraux}
+
+Pour les graphes avec \textbf{cycles} (boucles), on utilise \textbf{Loopy Belief Propagation} :
+\begin{itemize}
+    \item Itération des messages jusqu'à convergence
+    \item \textbf{Approximatif} (pas de garantie de convergence)
+    \item Souvent efficace en pratique
+\end{itemize}
+
+\subsubsection{Complexité}
+
+Pour les arbres :
+\[ \text{Complexité} = O(n \cdot d^2) \]
+où $n$ est le nombre de nœuds et $d$ la taille du domaine.
+
+\textbf{Avantage majeur :} Linéaire en nombre de nœuds pour les arbres !
+
+\subsection{Comparaison des Algorithmes}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3cm}|p{4.5cm}|p{4.5cm}|}
+\hline
+\textbf{Critère} & \textbf{Variable Elimination} & \textbf{Belief Propagation} \\
+\hline
+Type & Exact & Exact (arbres), Approx (cycles) \\
+\hline
+Structure & DAG général & Optimal pour arbres/polyarbres \\
+\hline
+Complexité temps & $O(n \cdot d^{w+1})$ & $O(n \cdot d^2)$ (arbres) \\
+\hline
+Complexité espace & $O(d^w)$ & $O(n \cdot d)$ \\
+\hline
+Usage optimal & Requête unique & Requêtes multiples \\
+\hline
+Mise à jour & Recalcul complet & Incrémentale (local) \\
+\hline
+Parallélisation & Difficile & Naturelle \\
+\hline
+\end{tabular}
+\caption{Comparaison des algorithmes d'inférence}
+\end{table}
+
+\subsection{Choix de l'Algorithme}
+
+\textbf{Variable Elimination si :}
+\begin{itemize}
+    \item Réseau de taille moyenne avec cycles
+    \item Requête ponctuelle (une fois)
+    \item Besoin de résultat exact garanti
+\end{itemize}
+
+\textbf{Belief Propagation si :}
+\begin{itemize}
+    \item Structure d'arbre ou polyarbre
+    \item Requêtes répétées avec évidence changeante
+    \item Besoin de mise à jour incrémentale
+    \item Grand réseau (parallélisation possible)
+\end{itemize}
+
+\textbf{MCMC (Méthodes approximatives) si :}
+\begin{itemize}
+    \item Réseau très grand et dense
+    \item Inférence exacte trop coûteuse
+    \item Approximation acceptable
+\end{itemize}
+
+\subsection{Implémentation dans le Code}
+
+Notre implémentation (fichier \texttt{etape4\_probleme\_reel.py}) permet de comparer les deux approches :
+
+\begin{lstlisting}[language=Python]
+# Variable Elimination (par defaut)
+inference = VariableElimination(model)
+result = inference.query(variables=['Grippe'], 
+                        evidence={'Fievre': 'Oui'})
+
+# Belief Propagation
+inference_bp = BeliefPropagation(model)
+result_bp = inference_bp.query(variables=['Grippe'], 
+                               evidence={'Fievre': 'Oui'})
+\end{lstlisting}
+
+\textbf{Résultats comparatifs :}
+\begin{itemize}
+    \item Les deux algorithmes donnent les mêmes probabilités (algorithmes exacts)
+    \item Variable Elimination : plus rapide pour notre réseau médical
+    \item Belief Propagation : serait plus efficace pour un réseau de type arbre
+\end{itemize}
+
+\section{Types de Structures}
+
+\subsection{Polyarbre (Polytree)}
+
+\textbf{Définition :} Un polyarbre est un DAG où il existe \textbf{au plus un chemin non-dirigé} entre deux nœuds quelconques.
+
+\textbf{Propriété :} L'inférence exacte est efficace (complexité linéaire en nombre de nœuds).
+
+\textbf{Exemple classique :} Système d'alarme
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{images/polyarbre_structure.png}
+\caption{Polyarbre : Réseau d'alarme (Cambriolage, Tremblement, Alarme, John, Mary)}
+\end{figure}
+
+\textbf{Variables :}
+\begin{itemize}
+    \item $B$ : Cambriolage (racine)
+    \item $E$ : Tremblement de terre (racine)
+    \item $A$ : Alarme (nœud intermédiaire)
+    \item $J$ : John appelle (feuille, évidence)
+    \item $M$ : Mary appelle (feuille, évidence)
+\end{itemize}
+
+\subsection{Graphe à Connexions Multiples}
+
+\textbf{Définition :} DAG général avec plusieurs chemins possibles entre nœuds.
+
+\textbf{Caractéristique :} Représente des dépendances causales plus complexes et réalistes.
+
+\textbf{Inférence :} Nécessite des algorithmes plus sophistiqués (élimination de variables, junction tree).
+
+\section{Implémentation avec pgmpy}
+
+\subsection{Installation}
+
+\texttt{pgmpy} (Probabilistic Graphical Models in Python) est une bibliothèque moderne pour les réseaux bayésiens.
+
+\begin{lstlisting}[language=bash]
+pip install pgmpy numpy pandas matplotlib networkx
+\end{lstlisting}
+
+\subsection{Structure du Code}
+
+\textbf{Étape 2 :} \texttt{etape2\_polyarbre.py}
+\begin{itemize}
+    \item Implémentation du réseau d'alarme (polyarbre)
+    \item Variables racine : Cambriolage (0.1\%), Tremblement (0.2\%)
+    \item Inférence : $P(\text{Cambriolage} \mid \text{John appelle}, \text{Mary appelle})$
+\end{itemize}
+
+\textbf{Étape 3 :} \texttt{etape3\_connexions\_multiples.py}
+\begin{itemize}
+    \item Réseau plus complexe avec cycles indirects
+    \item Multiples chemins causaux entre variables
+    \item Algorithme d'élimination de variables
+\end{itemize}
+
+\textbf{Étape 4 :} \texttt{etape4\_probleme\_reel.py}
+\begin{itemize}
+    \item Application réelle : diagnostic médical
+    \item Modélisation de maladies respiratoires
+    \item Variables contextuelles, symptômes, tests médicaux
+\end{itemize}
+
+\section{ÉTAPE 2 : Réseau Polyarbre - Alarme}
+
+\subsection{Modélisation du Problème}
+
+\textbf{Scénario :} Un système d'alarme domestique se déclenche. Deux voisins (John et Mary) peuvent appeler pour signaler l'alarme. On veut déterminer la probabilité d'un cambriolage sachant qui a appelé.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.7\textwidth]{images/polyarbre_structure.png}
+\caption{Structure du réseau polyarbre générée par le script Python}
+\end{figure}
+
+\subsection{Probabilités A Priori}
+
+\begin{itemize}
+    \item $P(\text{Cambriolage} = \text{Oui}) = 0.001$ (0.1\%)
+    \item $P(\text{Tremblement} = \text{Oui}) = 0.002$ (0.2\%)
+\end{itemize}
+
+\subsection{Probabilités Conditionnelles}
+
+\textbf{Alarme sachant Cambriolage et Tremblement :}
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Cambriolage} & \textbf{Tremblement} & \textbf{P(Alarme=Oui)} \\
+\hline
+Non & Non & 0.001 \\
+Non & Oui & 0.29 \\
+Oui & Non & 0.71 \\
+Oui & Oui & 0.95 \\
+\hline
+\end{tabular}
+\caption{CPD de l'Alarme}
+\end{table}
+
+\textbf{Appels sachant Alarme :}
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Alarme} & \textbf{P(John=Oui)} & \textbf{P(Mary=Oui)} \\
+\hline
+Non & 0.05 & 0.01 \\
+Oui & 0.90 & 0.70 \\
+\hline
+\end{tabular}
+\caption{CPD des appels de John et Mary}
+\end{table}
+
+\subsection{Scénarios d'Inférence}
+
+\textbf{Scénario 1 : John appelle}
+\[ P(\text{Cambriolage=Oui} \mid \text{John appelle}) = 0.016 \text{ (1.6\%)} \]
+
+\textbf{Scénario 2 : John ET Mary appellent}
+\[ P(\text{Cambriolage=Oui} \mid \text{John appelle, Mary appelle}) = 0.284 \text{ (28.4\%)} \]
+
+\textbf{Interprétation :} L'évidence convergente (plusieurs témoins) augmente considérablement la probabilité de cambriolage.
+
+\subsection{Résultats Complets}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Évidence} & \textbf{P(Cambriolage=Non)} & \textbf{P(Cambriolage=Oui)} \\
+\hline
+Aucune évidence & 99.90\% & 0.10\% \\
+John appelle & 98.36\% & 1.64\% \\
+Mary appelle & 97.00\% & 3.00\% \\
+John ET Mary appellent & 71.58\% & 28.42\% \\
+\hline
+\end{tabular}
+\caption{Probabilités a posteriori du cambriolage}
+\end{table}
+
+\section{ÉTAPE 4 : Problème Réel - Diagnostic Médical}
+
+\subsection{Description du Scénario}
+
+Un patient présente des symptômes respiratoires. Le médecin doit diagnostiquer parmi plusieurs maladies possibles en combinant :
+\begin{itemize}
+    \item Informations contextuelles (saison, vaccination)
+    \item Symptômes observés (fièvre, toux, fatigue, écoulement nasal)
+    \item Résultats de tests médicaux (test COVID, analyse sanguine)
+\end{itemize}
+
+\subsection{Variables du Réseau}
+
+\textbf{Variables de contexte :}
+\begin{itemize}
+    \item Saison : Hiver / Été
+    \item Vaccination COVID : Oui / Non
+\end{itemize}
+
+\textbf{Maladies (hypothèses) :}
+\begin{itemize}
+    \item Grippe
+    \item COVID-19
+    \item Allergie
+\end{itemize}
+
+\textbf{Symptômes (évidences) :}
+\begin{itemize}
+    \item Fièvre
+    \item Toux
+    \item Fatigue
+    \item Écoulement nasal
+\end{itemize}
+
+\textbf{Tests médicaux (évidences) :}
+\begin{itemize}
+    \item Test COVID : Positif / Négatif
+    \item Analyse sanguine : Normale / Anormale
+\end{itemize}
+
+\subsection{Structure du Réseau}
+
+Le réseau présente des \textbf{connexions multiples} entre maladies et symptômes :
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\textwidth]{images/diagnostic_medical_structure.png}
+\caption{Structure du réseau de diagnostic médical générée par le script Python}
+\end{figure}
+
+\textbf{Représentation alternative avec TikZ :}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.5cm and 2cm,
+    variable/.style={draw, ellipse, minimum width=2cm, minimum height=0.8cm, font=\footnotesize},
+    arrow/.style={->,>=Stealth}
+]
+    % Contexte
+    \node[variable] (saison) at (0,4) {Saison};
+    \node[variable] (vaccin) at (6,4) {Vaccination};
+    
+    % Maladies
+    \node[variable] (grippe) at (0,2) {Grippe};
+    \node[variable] (covid) at (3,2) {COVID-19};
+    \node[variable] (allergie) at (6,2) {Allergie};
+    
+    % Symptômes
+    \node[variable] (fievre) at (-1,0) {Fièvre};
+    \node[variable] (toux) at (2,0) {Toux};
+    \node[variable] (fatigue) at (5,0) {Fatigue};
+    \node[variable] (ecoulement) at (8,0) {Écoulement};
+    
+    % Tests
+    \node[variable] (testcovid) at (3,-2) {Test COVID};
+    \node[variable] (sang) at (6,-2) {Analyse Sang};
+    
+    % Arêtes
+    \draw[arrow] (saison) -- (grippe);
+    \draw[arrow] (saison) -- (allergie);
+    \draw[arrow] (vaccin) -- (covid);
+    
+    \draw[arrow] (grippe) -- (fievre);
+    \draw[arrow] (covid) -- (fievre);
+    
+    \draw[arrow] (grippe) -- (toux);
+    \draw[arrow] (covid) -- (toux);
+    \draw[arrow] (allergie) -- (toux);
+    
+    \draw[arrow] (grippe) -- (fatigue);
+    \draw[arrow] (covid) -- (fatigue);
+    
+    \draw[arrow] (allergie) -- (ecoulement);
+    
+    \draw[arrow] (covid) -- (testcovid);
+    \draw[arrow] (grippe) -- (sang);
+    \draw[arrow] (covid) -- (sang);
+\end{tikzpicture}
+\caption{Réseau bayésien pour le diagnostic médical}
+\end{figure}
+
+\subsection{Probabilités Conditionnelles Clés}
+
+\textbf{Grippe sachant Saison :}
+\begin{itemize}
+    \item $P(\text{Grippe} \mid \text{Été}) = 0.02$
+    \item $P(\text{Grippe} \mid \text{Hiver}) = 0.10$
+\end{itemize}
+
+\textbf{COVID-19 sachant Vaccination :}
+\begin{itemize}
+    \item $P(\text{COVID} \mid \text{Non vacciné}) = 0.06$
+    \item $P(\text{COVID} \mid \text{Vacciné}) = 0.02$
+\end{itemize}
+
+\textbf{Fièvre sachant maladies :}
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Grippe} & \textbf{COVID-19} & \textbf{P(Fièvre=Oui)} \\
+\hline
+Non & Non & 0.05 \\
+Non & Oui & 0.80 \\
+Oui & Non & 0.85 \\
+Oui & Oui & 0.95 \\
+\hline
+\end{tabular}
+\caption{CPD de la Fièvre}
+\end{table}
+
+\subsection{Cas Clinique Exemple}
+
+\textbf{Patient : Jean, 35 ans}
+
+\textbf{Contexte :}
+\begin{itemize}
+    \item Saison : Hiver
+    \item Vaccination COVID : À jour
+\end{itemize}
+
+\textbf{Symptômes observés :}
+\begin{itemize}
+    \item Fièvre : Oui (38.5°C)
+    \item Toux : Oui (toux sèche)
+    \item Fatigue : Oui
+    \item Écoulement nasal : Non
+\end{itemize}
+
+\textbf{Test COVID rapide : Négatif}
+
+\subsection{Inférence et Résultats}
+
+\textbf{Probabilités a posteriori des maladies :}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|}
+\hline
+\textbf{Maladie} & \textbf{Probabilité} \\
+\hline
+Grippe & 72.3\% \\
+COVID-19 & 8.5\% \\
+Allergie & 3.2\% \\
+Aucune maladie & 16.0\% \\
+\hline
+\end{tabular}
+\caption{Diagnostic probabiliste après inférence}
+\end{table}
+
+\textbf{Diagnostic recommandé : GRIPPE (confiance 72.3\%)}
+
+\subsection{Analyse de Sensibilité}
+
+\textbf{Scénario alternatif : Test COVID POSITIF}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Maladie} & \textbf{Test Négatif} & \textbf{Test Positif} \\
+\hline
+Grippe & 72.3\% & 15.8\% \\
+COVID-19 & 8.5\% & 78.4\% \\
+Allergie & 3.2\% & 1.2\% \\
+\hline
+\end{tabular}
+\caption{Impact du résultat du test COVID}
+\end{table}
+
+\textbf{Observation :} Un test positif inverse complètement le diagnostic, illustrant la puissance de l'inférence bayésienne pour intégrer de nouvelles évidences.
+
+\section{Simulation de Patients}
+
+Le fichier \texttt{etape4\_probleme\_reel.py} génère automatiquement plusieurs scénarios de patients avec différentes combinaisons de symptômes et tests.
+
+\subsection{Exemples de Scénarios}
+
+\textbf{Patient 1 : Cas typique de grippe}
+\begin{itemize}
+    \item Symptômes : Fièvre élevée, toux, fatigue intense
+    \item Test COVID : Négatif
+    \item Diagnostic : Grippe (85\%)
+\end{itemize}
+
+\textbf{Patient 2 : Cas d'allergie saisonnière}
+\begin{itemize}
+    \item Saison : Été
+    \item Symptômes : Toux légère, écoulement nasal, pas de fièvre
+    \item Diagnostic : Allergie (78\%)
+\end{itemize}
+
+\textbf{Patient 3 : Cas ambigu}
+\begin{itemize}
+    \item Symptômes : Fatigue uniquement
+    \item Test COVID : Négatif
+    \item Analyse sang : Normale
+    \item Diagnostic : Incertain (aucune maladie 65\%)
+\end{itemize}
+
+\section{Comparaison avec d'Autres Approches}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|p{3.5cm}|p{5cm}|p{5cm}|}
+\hline
+\textbf{Critère} & \textbf{Réseaux Bayésiens} & \textbf{Dempster-Shafer} \\
+\hline
+Nature & Probabiliste (additif) & Évidenciel (non-additif) \\
+\hline
+Représentation & Graphe causal DAG & Fonctions de masse \\
+\hline
+Ignorance & Implicite (probabilité uniforme) & Explicite ($m(\Theta)$) \\
+\hline
+Combinaison & Règle de Bayes & Règle de Dempster \\
+\hline
+Causalité & Modélisation explicite & Pas de structure causale \\
+\hline
+Complexité calcul & Exponentielle (pire cas) & Exponentielle \\
+\hline
+Applications & Diagnostic, prévision, décision & Fusion de capteurs, incertitude \\
+\hline
+\end{tabular}
+\caption{Réseaux Bayésiens vs Théorie de Dempster-Shafer}
+\end{table}
+
+\section{Avantages et Limites}
+
+\subsection{Avantages des Réseaux Bayésiens}
+
+\begin{itemize}
+    \item \textbf{Représentation intuitive} des relations causales
+    \item \textbf{Inférence bidirectionnelle} : prédiction et diagnostic
+    \item \textbf{Apprentissage automatique} des structures et paramètres depuis données
+    \item \textbf{Intégration de connaissances expertes} et données empiriques
+    \item \textbf{Gestion naturelle} de l'incomplétude des données
+\end{itemize}
+
+\subsection{Limites}
+
+\begin{itemize}
+    \item \textbf{Hypothèse forte} : variables discrètes ou distributions paramétriques
+    \item \textbf{Complexité} : inférence exacte NP-difficile pour graphes généraux
+    \item \textbf{Spécification} : nécessite de nombreux paramètres (CPDs)
+    \item \textbf{Causalité} : le graphe représente des dépendances, pas toujours causalité réelle
+\end{itemize}
+
+\section{Conclusion}
+
+Les réseaux bayésiens constituent un formalisme puissant et flexible pour le raisonnement probabiliste sous incertitude. Leur capacité à :
+\begin{itemize}
+    \item Structurer graphiquement les dépendances entre variables
+    \item Effectuer des inférences efficaces via la factorisation de la distribution jointe
+    \item Intégrer progressivement de nouvelles évidences
+    \item Représenter des modèles causaux interprétables
+\end{itemize}
+
+en fait un outil de choix pour de nombreuses applications en intelligence artificielle, notamment le diagnostic médical, la détection de pannes, l'analyse de risques, et les systèmes de recommandation.
+
+Ce TP a illustré l'utilisation pratique de ces réseaux à travers :
+\begin{enumerate}
+    \item Un \textbf{polyarbre simple} (réseau d'alarme) montrant les bases de l'inférence
+    \item Un \textbf{réseau à connexions multiples} démontrant la richesse expressive
+    \item Un \textbf{cas réel} (diagnostic médical) validant l'applicabilité concrète
+\end{enumerate}
+
+La comparaison avec d'autres formalismes (Dempster-Shafer, logique possibiliste) met en évidence que chaque approche a ses forces et domaines d'application privilégiés, les réseaux bayésiens excellant particulièrement dans la modélisation causale et l'inférence probabiliste.
+
